@@ -1,0 +1,35 @@
+services:
+  # Base de datos espacial. Los .sql de db/init se ejecutan en orden al crear el volumen.
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: rosariotour-db
+    environment:
+      POSTGRES_USER: rosariotour
+      POSTGRES_PASSWORD: rosariotour
+      POSTGRES_DB: rosariotour
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rosariotour"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Motor de ruteo OSRM (perfil a pie). Requiere preprocesar el extract de OSM primero:
+  #   bash osrm/prepare.sh
+  # Luego: docker compose --profile routing up osrm
+  osrm:
+    image: osrm/osrm-backend:latest
+    container_name: rosariotour-osrm
+    profiles: ["routing"]
+    command: osrm-routed --algorithm mld /data/santa-fe-latest.osrm
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./osrm/data:/data
+
+volumes:
+  pgdata:
